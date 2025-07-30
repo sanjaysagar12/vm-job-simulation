@@ -2,12 +2,14 @@ import { useState } from "react";
 import TypingEffect from "./TypingEffect";
 import MDtoHTML from "./MDtoHTML";
 import MailConversation from "./MailConversation";
-import { Mail } from "lucide-react";
+import { Mail, Github, ExternalLink } from "lucide-react";
 import { usePageNavigation } from "../hooks/navigation";
+import { fetchMultipleFiles, saveRepoUrl, getSavedRepoUrl, type GitHubFileResult } from "../service/github";
 
 export type SceneInputField = {
   label: string;
   name: string;
+  filename: string; // GitHub filename to fetch
   placeholder?: string;
   required?: boolean;
   rows?: number;
@@ -24,6 +26,7 @@ export type SceneTemplateProps = {
   title: string;
   objective: string;
   nextScene?: string;
+  sceneId: string; // Add scene ID for localStorage
 };
 
 function SceneTemplate({
@@ -35,7 +38,8 @@ function SceneTemplate({
   inputFields,
   title,
   objective,
-  nextScene
+  nextScene,
+  sceneId
 }: SceneTemplateProps) {
   const [showTask, setShowTask] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -44,31 +48,85 @@ function SceneTemplate({
     inputFields.forEach(f => { obj[f.name] = ""; });
     return obj;
   });
+  const [githubUrl, setGithubUrl] = useState<string>(() => getSavedRepoUrl(sceneId) || "");
   const [mailConvo, setMailConvo] = useState<any[]>(initialMailConvo);
   const [allCorrect, setAllCorrect] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fetchErrors, setFetchErrors] = useState<string[]>([]);
   const { setCurrentPage } = usePageNavigation();
 
   const handleComplete = () => setShowTask(true);
 
-  const handleInputChange = (name: string, value: string) => {
-    setInputs(prev => ({ ...prev, [name]: value }));
-  };
-
   const handleSubmit = async () => {
-    const userMail = createUserMail(inputs, mailConvo.length);
-    const aiMailArr = await createReviewMail(inputs);
-    const aiMail = aiMailArr[0];
-    setMailConvo([...mailConvo, userMail, aiMail]);
-    setIsDrawerOpen(true);
-    const allCorrectNow = aiMail.body.includes('Great job! Both files meet our standards') || aiMail.body.includes('Congratulations!');
-    setAllCorrect(allCorrectNow);
+    if (!githubUrl.trim()) {
+      setFetchErrors(["Please provide your GitHub repository URL"]);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setFetchErrors([]);
+    
+    try {
+      // Save the repo URL
+      saveRepoUrl(sceneId, githubUrl);
+      
+      // Get filenames to fetch
+      const filenames = inputFields.map(field => field.filename);
+      
+      // Fetch files from GitHub
+      const { repoInfo, results } = await fetchMultipleFiles(githubUrl, filenames);
+      
+      if (!repoInfo) {
+        setFetchErrors(["Invalid GitHub URL format. Please use: https://github.com/username/reponame"]);
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Check for any fetch errors
+      const errors: string[] = [];
+      const fetchedInputs: Record<string, string> = {};
+      
+      results.forEach((result, index) => {
+        const field = inputFields[index];
+        if (result.success && result.content) {
+          fetchedInputs[field.name] = result.content;
+        } else {
+          errors.push(result.error || `Failed to fetch ${field.filename}`);
+        }
+      });
+      
+      if (errors.length > 0) {
+        setFetchErrors(errors);
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Update inputs with fetched content
+      setInputs(fetchedInputs);
+      
+      // Create user mail and get AI review
+      const userMail = createUserMail(fetchedInputs, mailConvo.length);
+      const aiMailArr = await createReviewMail(fetchedInputs);
+      const aiMail = aiMailArr[0];
+      
+      setMailConvo([...mailConvo, userMail, aiMail]);
+      setIsDrawerOpen(true);
+      
+      const allCorrectNow = aiMail.body.includes('Great job! Both files meet our standards') || aiMail.body.includes('Congratulations!');
+      setAllCorrect(allCorrectNow);
+      
+    } catch (error) {
+      setFetchErrors([`Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`]);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleProceedToNextScene = () => {
     if (nextScene) setCurrentPage(nextScene);
   };
 
-  const allRequiredFilled = inputFields.every(f => !f.required || inputs[f.name].trim());
+  const isValidGitHubUrl = githubUrl.trim() && githubUrl.includes('github.com/');
 
   if (showTask) {
     return (
@@ -141,31 +199,93 @@ function SceneTemplate({
             </div>
             {/* Submission Form */}
             <div className="mt-8 bg-white rounded-lg border border-gray-200 p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-6">Submit Your Project Files</h3>
-              <div className="space-y-6">
-                {inputFields.map(f => (
-                  <div key={f.name}>
-                    <label className="block text-sm font-medium text-gray-900 mb-2">
-                      {f.label} {f.required && <span className="text-red-500">*</span>}
-                    </label>
-                    <textarea
-                      rows={f.rows || 6}
-                      value={inputs[f.name]}
-                      onChange={e => handleInputChange(f.name, e.target.value)}
-                      className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900 resize-none"
-                      placeholder={f.placeholder}
-                    />
-                    {f.description && <p className="text-xs text-gray-500 mt-2">{f.description}</p>}
+              <h3 className="text-lg font-medium text-gray-900 mb-6">Submit Your GitHub Repository</h3>
+              
+              {/* GitHub URL Input */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  GitHub Repository URL <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center space-x-3">
+                  <Github className="w-5 h-5 text-gray-400" />
+                  <input
+                    type="url"
+                    value={githubUrl}
+                    onChange={(e) => setGithubUrl(e.target.value)}
+                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                    placeholder="https://github.com/username/velsymedia-support-portal"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Provide your GitHub repository URL. We'll automatically fetch and validate your files.
+                </p>
+              </div>
+
+              {/* Expected Files List */}
+              <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="text-sm font-medium text-blue-900 mb-2">Files we'll check in your repository:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  {inputFields.map(field => (
+                    <li key={field.name} className="flex items-center space-x-2">
+                      <span className="w-2 h-2 bg-blue-600 rounded-full"></span>
+                      <code className="bg-white px-2 py-1 rounded text-xs">{field.filename}</code>
+                      <span>- {field.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Fetch Errors */}
+              {fetchErrors.length > 0 && (
+                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-red-900 mb-2">Issues found:</h4>
+                  <ul className="text-sm text-red-800 space-y-1">
+                    {fetchErrors.map((error, index) => (
+                      <li key={index} className="flex items-start space-x-2">
+                        <span className="w-2 h-2 bg-red-600 rounded-full mt-2 flex-shrink-0"></span>
+                        <span>{error}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Fetched Files Preview (only show if we have content) */}
+              {Object.keys(inputs).length > 0 && Object.values(inputs).some(content => content.trim()) && (
+                <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+                  <h4 className="text-sm font-medium text-green-900 mb-2">✅ Files successfully fetched from your repository</h4>
+                  <div className="space-y-2">
+                    {inputFields.map(field => (
+                      inputs[field.name] && (
+                        <div key={field.name} className="text-sm text-green-800">
+                          <code className="bg-white px-2 py-1 rounded text-xs">{field.filename}</code>
+                          <span className="ml-2">({inputs[field.name].length} characters)</span>
+                        </div>
+                      )
+                    ))}
                   </div>
-                ))}
+                </div>
+              )}
+
+              <div className="space-y-6">
                 {/* Submit Button */}
                 <div className="text-center pt-4">
                   <button
-                    disabled={!allRequiredFilled}
+                    disabled={!isValidGitHubUrl || isSubmitting}
                     onClick={handleSubmit}
-                    className="bg-gray-900 text-white px-8 py-3 text-sm font-medium hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    className="bg-gray-900 text-white px-8 py-3 text-sm font-medium hover:bg-gray-800 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:ring-offset-2 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2 mx-auto"
                   >
-                    Submit Files
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                        <span>Fetching & Validating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-4 h-4" />
+                        <span>Fetch Files & Submit for Review</span>
+                      </>
+                    )}
                   </button>
                 </div>
                 {allCorrect && nextScene && (

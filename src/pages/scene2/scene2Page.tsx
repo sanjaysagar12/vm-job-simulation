@@ -7,6 +7,7 @@ const inputFields: SceneInputField[] = [
 	{
 		label: ".gitignore Content",
 		name: "gitignoreContent",
+		filename: ".gitignore",
 		placeholder: `# Python\n__pycache__/\nvenv/\n*.db\n# OS\n.DS_Store\nThumbs.db`,
 		required: true,
 		rows: 6,
@@ -15,6 +16,7 @@ const inputFields: SceneInputField[] = [
 	{
 		label: "README.md Content",
 		name: "readmeContent",
+		filename: "README.md",
 		placeholder: `# Smart Customer Support Portal\n\nInitial project setup for VelsyMedia's customer support portal.\n\n## Getting Started\nInstructions coming soon...`,
 		required: true,
 		rows: 6,
@@ -36,6 +38,7 @@ function Scene2Page() {
 			title="VelsyMedia Project Onboarding"
 			objective="Initialize your Git repository, connect to GitHub, and create the required project files for the Smart Customer Support Portal. Submit your .gitignore and README.md contents below."
 			nextScene="scene3"
+			sceneId="scene2"
 		/>
 	);
 }

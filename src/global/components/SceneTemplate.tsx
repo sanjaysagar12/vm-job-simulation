@@ -25,8 +25,19 @@ export type SceneTemplateProps = {
   inputFields: SceneInputField[];
   title: string;
   objective: string;
-  nextScene?: string;
   sceneId: string; // Add scene ID for localStorage
+  children?: React.ReactNode; // Allow custom content after validation
+};
+
+// Export utility function for scene navigation
+export const useSceneNavigation = () => {
+  const { setCurrentPage } = usePageNavigation();
+  
+  const navigateToScene = (sceneName: string) => {
+    setCurrentPage(sceneName);
+  };
+  
+  return { navigateToScene };
 };
 
 function SceneTemplate({
@@ -38,8 +49,8 @@ function SceneTemplate({
   inputFields,
   title,
   objective,
-  nextScene,
-  sceneId
+  sceneId,
+  children
 }: SceneTemplateProps) {
   const [showTask, setShowTask] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -53,7 +64,6 @@ function SceneTemplate({
   const [allCorrect, setAllCorrect] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchErrors, setFetchErrors] = useState<string[]>([]);
-  const { setCurrentPage } = usePageNavigation();
 
   const handleComplete = () => setShowTask(true);
 
@@ -120,10 +130,6 @@ function SceneTemplate({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const handleProceedToNextScene = () => {
-    if (nextScene) setCurrentPage(nextScene);
   };
 
   const isValidGitHubUrl = githubUrl.trim() && githubUrl.includes('github.com/');
@@ -288,17 +294,9 @@ function SceneTemplate({
                     )}
                   </button>
                 </div>
-                {allCorrect && nextScene && (
+                {allCorrect && children && (
                   <div className="text-center pt-4">
-                    <p className="text-sm text-gray-700 mb-4">
-                      Congratulations! Your project setup files are correct.
-                    </p>
-                    <button
-                      onClick={handleProceedToNextScene}
-                      className="bg-green-600 text-white px-6 py-3 text-sm font-medium rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                    >
-                      Proceed to Next Scene
-                    </button>
+                    {children}
                   </div>
                 )}
               </div>

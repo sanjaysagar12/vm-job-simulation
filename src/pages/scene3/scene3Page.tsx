@@ -7,6 +7,7 @@ const inputFields: SceneInputField[] = [
   {
     label: "index.html Content",
     name: "htmlContent",
+    filename: "frontend/index.html",
     placeholder: `<!DOCTYPE html>\n<html lang=\"en\">...`,
     required: true,
     rows: 16,
@@ -15,6 +16,7 @@ const inputFields: SceneInputField[] = [
   {
     label: "style.css Content",
     name: "cssContent",
+    filename: "frontend/style.css",
     placeholder: `body {\n  font-family: Arial, sans-serif;...`,
     required: true,
     rows: 12,
@@ -34,6 +36,7 @@ function Scene3Page() {
       title="Static Customer Submission Form (HTML & CSS)"
       objective="Build the basic visual structure and apply initial styling for the customer-facing support form within a simple, root-level frontend/ directory."
       nextScene="scene4"
+      sceneId="scene3"
     />
   );
 }

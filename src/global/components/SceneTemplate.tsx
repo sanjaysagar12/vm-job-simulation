@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import TypingEffect from "./TypingEffect";
 import MDtoHTML from "./MDtoHTML";
 import MailConversation from "./MailConversation";
@@ -40,6 +40,16 @@ export const useSceneNavigation = () => {
   return { navigateToScene };
 };
 
+// Use a fixed key for GitHub repo URL across all scenes
+const GITHUB_REPO_KEY = "github_repo";
+
+function getGlobalRepoUrl() {
+  return localStorage.getItem(GITHUB_REPO_KEY) || "";
+}
+function saveGlobalRepoUrl(url: string) {
+  localStorage.setItem(GITHUB_REPO_KEY, url);
+}
+
 function SceneTemplate({
   storyEntries,
   requirementsMarkdown,
@@ -59,11 +69,21 @@ function SceneTemplate({
     inputFields.forEach(f => { obj[f.name] = ""; });
     return obj;
   });
-  const [githubUrl, setGithubUrl] = useState<string>(() => getSavedRepoUrl(sceneId) || "");
+  const [githubUrl, setGithubUrl] = useState<string>(() => getGlobalRepoUrl());
   const [mailConvo, setMailConvo] = useState<any[]>(initialMailConvo);
   const [allCorrect, setAllCorrect] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fetchErrors, setFetchErrors] = useState<string[]>([]);
+  const [isEditingUrl, setIsEditingUrl] = useState(false);
+
+  // Sync githubUrl and savedUrl with localStorage on mount and sceneId change
+  useEffect(() => {
+    const url = getGlobalRepoUrl();
+    if (url) {
+      setGithubUrl(url);
+      setIsEditingUrl(false);
+    }
+  }, [sceneId]);
 
   const handleComplete = () => setShowTask(true);
 
@@ -75,10 +95,9 @@ function SceneTemplate({
 
     setIsSubmitting(true);
     setFetchErrors([]);
-    
     try {
-      // Save the repo URL
-      saveRepoUrl(sceneId, githubUrl);
+      // Save the repo URL globally
+      saveGlobalRepoUrl(githubUrl);
       
       // Get filenames to fetch
       const filenames = inputFields.map(field => field.filename);
@@ -133,6 +152,9 @@ function SceneTemplate({
   };
 
   const isValidGitHubUrl = githubUrl.trim() && githubUrl.includes('github.com/');
+
+  // Check localStorage for GitHub URL before rendering input
+  const savedUrl = getSavedRepoUrl(sceneId);
 
   if (showTask) {
     return (
@@ -212,16 +234,33 @@ function SceneTemplate({
                 <label className="block text-sm font-medium text-gray-900 mb-2">
                   GitHub Repository URL <span className="text-red-500">*</span>
                 </label>
-                <div className="flex items-center space-x-3">
-                  <Github className="w-5 h-5 text-gray-400" />
-                  <input
-                    type="url"
-                    value={githubUrl}
-                    onChange={(e) => setGithubUrl(e.target.value)}
-                    className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
-                    placeholder="https://github.com/username/velsymedia-support-portal"
-                  />
-                </div>
+                {savedUrl && !isEditingUrl ? (
+                  <div className="flex items-center space-x-3">
+                    <Github className="w-5 h-5 text-gray-400" />
+                    <span className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm bg-gray-50 text-gray-700">{savedUrl}</span>
+                    <button
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      onClick={() => setIsEditingUrl(true)}
+                    >Edit</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-3">
+                    <Github className="w-5 h-5 text-gray-400" />
+                    <input
+                      type="url"
+                      value={githubUrl}
+                      onChange={(e) => setGithubUrl(e.target.value)}
+                      className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
+                      placeholder="https://github.com/username/velsymedia-support-portal"
+                    />
+                    {savedUrl && (
+                      <button
+                        className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                        onClick={() => { setIsEditingUrl(false); setGithubUrl(savedUrl); }}
+                      >Cancel</button>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-gray-500 mt-2">
                   Provide your GitHub repository URL. We'll automatically fetch and validate your files.
                 </p>

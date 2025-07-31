@@ -1,4 +1,4 @@
-import SceneTemplate from "../../global/components/SceneTemplate";
+import SceneTemplate, { useSceneNavigation } from "../../global/components/SceneTemplate";
 import type { SceneInputField } from "../../global/components/SceneTemplate";
 import { storyEntries, requirementsMarkdown } from "./model/scene4Content";
 import { scene4MailConvo } from "./model/scene4MailConvo";
@@ -178,6 +178,8 @@ Team Lead, VelsyMedia`,
 };
 
 export default function Scene4Page() {
+  const { navigateToScene } = useSceneNavigation();
+
   return (
     <SceneTemplate
       storyEntries={storyEntries}
@@ -192,22 +194,15 @@ export default function Scene4Page() {
       objective="Add JavaScript validation to your customer support form to provide real-time feedback and ensure data quality. Implement comprehensive client-side validation for all form fields."
       sceneId="scene4"
     >
-      <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-        <div className="flex items-center justify-center mb-4">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-            <span className="text-green-600 text-2xl">🎉</span>
-          </div>
-        </div>
-        <h3 className="text-lg font-medium text-green-900 mb-2">
-          Congratulations! Task Completed Successfully!
-        </h3>
-        <p className="text-sm text-green-800 mb-4">
-          Excellent work! You have successfully completed this scene. Your JavaScript validation implementation meets all the requirements and demonstrates professional-level skills.
-        </p>
-        <p className="text-xs text-green-700">
-          Check your email for detailed feedback and next steps.
-        </p>
-      </div>
+      <p className="text-sm text-gray-700 mb-4">
+        Congratulations! Your frontend development is complete and ready for backend integration.
+      </p>
+      <button
+        onClick={() => navigateToScene("scene5")}
+        className="bg-green-600 text-white px-6 py-3 text-sm font-medium rounded-lg hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+      >
+        Continue to Backend Development
+      </button>
     </SceneTemplate>
   );
 }

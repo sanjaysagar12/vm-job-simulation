@@ -4,7 +4,7 @@ import MDtoHTML from "./MDtoHTML";
 import MailConversation from "./MailConversation";
 import { Mail, Github, ExternalLink } from "lucide-react";
 import { usePageNavigation } from "../hooks/navigation";
-import { fetchMultipleFiles, saveRepoUrl, getSavedRepoUrl, type GitHubFileResult } from "../service/github";
+import { fetchMultipleFiles, getSavedRepoUrl } from "../service/github";
 
 export type SceneInputField = {
   label: string;

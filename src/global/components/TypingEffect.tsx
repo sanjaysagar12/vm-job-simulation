@@ -20,19 +20,24 @@ const TypingEffect: React.FC<TypingEffectProps> = ({ entries, onComplete }) => {
 
     useEffect(() => {
         if (!entries[current]) return;
-        setDisplayed("");
+        const { text, speed = 50 } = entries[current];
+
+        // Set the first character immediately
+        setDisplayed(text.charAt(0));
         setTyping(true);
         typingRef.current = true;
-        let i = 0;
-        const { text, speed = 50 } = entries[current];
+        let i = 1; // Start from the second character
+
         function showFullText() {
             setDisplayed(text);
             setTyping(false);
             typingRef.current = false;
             if (intervalRef.current) clearInterval(intervalRef.current);
         }
+
         intervalRef.current = setInterval(() => {
             if (i < text.length) {
+                console.log(`Typing: ${text.charAt(i)}, Index: ${i}, Current: ${current}`);
                 setDisplayed((prev) => prev + text.charAt(i));
                 i++;
             } else {
